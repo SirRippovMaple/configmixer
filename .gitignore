@@ -1,0 +1,3 @@
+/configmixer
+*.env
+!testdata/**/*.env

@@ -1,0 +1,7 @@
+tags:
+  tenant: globex
+requires:
+  - env == prod
+env:
+  TENANT_NAME: "Globex Corp"
+  TENANT_ID: "globex"

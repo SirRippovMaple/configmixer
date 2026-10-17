@@ -1,0 +1,7 @@
+tags:
+  tenant: acme
+requires:
+  - env == dev
+env:
+  TENANT_NAME: "Acme Co"
+  TENANT_ID: "acme"

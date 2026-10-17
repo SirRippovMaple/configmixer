@@ -1,0 +1,5 @@
+tags:
+  env: prod
+env:
+  APP_ENV: "production"
+  LOG_LEVEL: "info"

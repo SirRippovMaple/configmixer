@@ -1,0 +1,7 @@
+tags:
+  fb-app: dev
+requires:
+  - env == dev
+env:
+  FB_APP_ID: "1111111111"
+  FB_APP_SECRET: "dev-secret"

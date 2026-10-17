@@ -1,0 +1,7 @@
+tags:
+  fb-app: prod
+requires:
+  - env == prod
+env:
+  FB_APP_ID: "2222222222"
+  FB_APP_SECRET: "prod-secret"

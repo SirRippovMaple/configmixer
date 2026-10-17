@@ -1,0 +1,5 @@
+tags:
+  fb-account: main
+env:
+  FB_ACCOUNT_ID: "999999"
+  FB_ACCESS_TOKEN: "shared-account-token"
