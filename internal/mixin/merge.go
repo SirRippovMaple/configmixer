@@ -1,6 +1,9 @@
 package mixin
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 // Merge combines the env vars of every mixin in the selection. It is an error
 // for the same key to appear in more than one mixin.
@@ -12,10 +15,15 @@ func Merge(sel Selection) (map[string]string, error) {
 	for c := range sel {
 		categories = append(categories, c)
 	}
+	sort.Strings(categories)
 
 	for _, category := range categories {
 		m := sel[category]
-		for k, v := range m.Env {
+		env, err := m.ResolvedEnv()
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range env {
 			if prev, ok := owner[k]; ok {
 				return nil, fmt.Errorf("duplicate key %q: set by both %s and %s/%s", k, prev, category, m.ID)
 			}

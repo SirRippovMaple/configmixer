@@ -1,0 +1,5 @@
+tags:
+  fb-account: generated
+script:
+  path: ../../scripts/facebook-account-generated.sh
+  format: json

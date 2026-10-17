@@ -18,6 +18,14 @@ type Mixin struct {
 	Requires []Expr
 	Excludes []Expr
 	Env      map[string]string
+	Script   *ScriptSpec
+}
+
+// ScriptSpec describes an external script a mixin runs to generate
+// additional key/value pairs at generate-time.
+type ScriptSpec struct {
+	Path   string
+	Format string // "dotenv", "json", or "yaml"
 }
 
 type rawMixin struct {
@@ -25,6 +33,12 @@ type rawMixin struct {
 	Requires []string          `yaml:"requires"`
 	Excludes []string          `yaml:"excludes"`
 	Env      map[string]string `yaml:"env"`
+	Script   *rawScript        `yaml:"script"`
+}
+
+type rawScript struct {
+	Path   string `yaml:"path"`
+	Format string `yaml:"format"`
 }
 
 // Catalog holds all mixins grouped by category.
@@ -127,6 +141,25 @@ func loadMixin(path, category, id string) (Mixin, error) {
 			return Mixin{}, fmt.Errorf("mixin %q excludes clause: %w", path, err)
 		}
 		m.Excludes = append(m.Excludes, e)
+	}
+	if raw.Script != nil {
+		format := raw.Script.Format
+		if format == "" {
+			format = "dotenv"
+		}
+		switch format {
+		case "dotenv", "json", "yaml":
+		default:
+			return Mixin{}, fmt.Errorf("mixin %q script.format %q: must be dotenv, json, or yaml", path, format)
+		}
+		if raw.Script.Path == "" {
+			return Mixin{}, fmt.Errorf("mixin %q: script.path must not be empty", path)
+		}
+		scriptPath := raw.Script.Path
+		if !filepath.IsAbs(scriptPath) {
+			scriptPath = filepath.Join(filepath.Dir(path), scriptPath)
+		}
+		m.Script = &ScriptSpec{Path: scriptPath, Format: format}
 	}
 	return m, nil
 }
