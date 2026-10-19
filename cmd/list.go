@@ -39,7 +39,7 @@ func newListCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&mixinsDir, "mixins-dir", "./mixins", "directory containing mixin categories")
+	cmd.Flags().StringVar(&mixinsDir, "mixins-dir", ".configmixer", "directory containing mixin categories")
 	return cmd
 }
 

@@ -161,7 +161,7 @@ Flags:
 
 | Flag             | Default      | Description                                  |
 |------------------|--------------|-----------------------------------------------|
-| `--mixins-dir`   | `./mixins`   | Directory containing mixin categories         |
+| `--mixins-dir`   | `.configmixer` | Directory containing mixin categories       |
 | `--out`          | `.env`       | Path to write the generated `.env` file       |
 | `--<category>`   | *(prompt)*   | One flag per discovered category, e.g. `--environment`, `--tenant` |
 

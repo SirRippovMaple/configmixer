@@ -25,7 +25,7 @@ func newGenerateCmd() *cobra.Command {
 		// per-category flags, and then parse the full flag set in one pass.
 		DisableFlagParsing: true,
 		RunE: func(c *cobra.Command, args []string) error {
-			c.Flags().StringVar(&mixinsDir, "mixins-dir", "./mixins", "directory containing mixin categories")
+			c.Flags().StringVar(&mixinsDir, "mixins-dir", ".configmixer", "directory containing mixin categories")
 			c.Flags().StringVar(&outPath, "out", ".env", "path to write the generated .env file")
 			c.Flags().BoolVar(&noAuto, "no-auto", false, "disable auto-selecting the only compatible mixin for every category")
 
