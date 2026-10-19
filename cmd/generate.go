@@ -16,6 +16,7 @@ import (
 func newGenerateCmd() *cobra.Command {
 	var mixinsDir string
 	var outPath string
+	var noAuto bool
 
 	cmd := &cobra.Command{
 		Use:   "generate",
@@ -26,6 +27,7 @@ func newGenerateCmd() *cobra.Command {
 		RunE: func(c *cobra.Command, args []string) error {
 			c.Flags().StringVar(&mixinsDir, "mixins-dir", "./mixins", "directory containing mixin categories")
 			c.Flags().StringVar(&outPath, "out", ".env", "path to write the generated .env file")
+			c.Flags().BoolVar(&noAuto, "no-auto", false, "disable auto-selecting the only compatible mixin for every category")
 
 			// Per-category flags don't exist yet, so scan the raw args for
 			// --mixins-dir by hand rather than doing a pflag pass (which would
@@ -47,9 +49,12 @@ func newGenerateCmd() *cobra.Command {
 			}
 
 			categoryFlags := map[string]*string{}
+			noAutoFlags := map[string]*bool{}
 			for _, category := range catalog.CategoryNames() {
 				v := c.Flags().String(category, "", fmt.Sprintf("mixin id to select for category %q", category))
 				categoryFlags[category] = v
+				na := c.Flags().Bool("no-auto-"+category, false, fmt.Sprintf("disable auto-selecting the only compatible mixin for category %q", category))
+				noAutoFlags[category] = na
 			}
 
 			if helpRequested {
@@ -60,13 +65,13 @@ func newGenerateCmd() *cobra.Command {
 				return err
 			}
 
-			return runGenerate(catalog, categoryFlags, outPath)
+			return runGenerate(catalog, categoryFlags, noAuto, noAutoFlags, outPath)
 		},
 	}
 	return cmd
 }
 
-func runGenerate(catalog *mixin.Catalog, categoryFlags map[string]*string, outPath string) error {
+func runGenerate(catalog *mixin.Catalog, categoryFlags map[string]*string, noAuto bool, noAutoFlags map[string]*bool, outPath string) error {
 	sel := mixin.Selection{}
 
 	for _, category := range catalog.CategoryNames() {
@@ -94,6 +99,11 @@ func runGenerate(catalog *mixin.Catalog, categoryFlags map[string]*string, outPa
 		choices := mixin.CompatibleChoices(catalog, category, sel)
 		if len(choices) == 0 {
 			return fmt.Errorf("no compatible mixin available for category %q given current selection", category)
+		}
+		if len(choices) == 1 && !noAuto && !*noAutoFlags[category] {
+			sel[category] = choices[0]
+			fmt.Printf("auto-selected %s: %s\n", category, choices[0].ID)
+			continue
 		}
 		chosen, err := promptChoice(reader, category, choices)
 		if err != nil {
