@@ -13,5 +13,6 @@ func NewRootCmd(version string) *cobra.Command {
 	}
 	root.AddCommand(newGenerateCmd())
 	root.AddCommand(newListCmd())
+	root.AddCommand(newRegenerateCmd())
 	return root
 }

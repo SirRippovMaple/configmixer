@@ -165,6 +165,46 @@ Flags:
 | `--out`          | `.env`       | Path to write the generated `.env` file       |
 | `--<category>`   | *(prompt)*   | One flag per discovered category, e.g. `--environment`, `--tenant` |
 
+The generated `.env` carries a marker comment (`# configmixer-selection: {...}`)
+recording which mixin id was chosen per category. `dotenv` parsing ignores
+`#`-prefixed lines, so this is invisible to anything else reading the file;
+`configmixer regenerate` uses it to rebuild the file later.
+
+### `configmixer regenerate`
+
+Rebuild a `.env` file from the selection embedded in it by a previous
+`generate`/`regenerate`, recomputing env vars (including script output) fresh.
+**It never prompts** — if a category has no embedded or flag-provided
+selection and more than one compatible mixin, it errors instead of asking:
+
+```sh
+$ configmixer regenerate --mixins-dir ./mixins --out .env
+wrote .env
+```
+
+Pass `--<category>` flags to override part or all of the embedded selection,
+as long as the result still passes the same compatibility checks `generate`
+uses:
+
+```sh
+$ configmixer regenerate --mixins-dir ./mixins --out .env --environment prod
+error: incompatible selection:
+  - tenant/acme requires env == dev
+$ configmixer regenerate --mixins-dir ./mixins --out .env --environment prod --tenant globex --oauth-app prod
+wrote .env
+```
+
+The overridden selection becomes the new embedded selection — a later bare
+`regenerate` reproduces the overridden result, not the original one.
+
+Flags:
+
+| Flag             | Default      | Description                                  |
+|------------------|--------------|-----------------------------------------------|
+| `--mixins-dir`   | `.configmixer` | Directory containing mixin categories       |
+| `--out`          | `.env`       | Path to the `.env` file to read from and overwrite |
+| `--<category>`   | *(embedded)* | One flag per discovered category to override the embedded selection |
+
 ## Worked example
 
 This mirrors the scenario configmixer was built for: an environment, a

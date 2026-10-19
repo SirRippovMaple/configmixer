@@ -48,11 +48,9 @@ func newGenerateCmd() *cobra.Command {
 				return err
 			}
 
-			categoryFlags := map[string]*string{}
+			categoryFlags := registerCategoryIDFlags(c, catalog)
 			noAutoFlags := map[string]*bool{}
 			for _, category := range catalog.CategoryNames() {
-				v := c.Flags().String(category, "", fmt.Sprintf("mixin id to select for category %q", category))
-				categoryFlags[category] = v
 				na := c.Flags().Bool("no-auto-"+category, false, fmt.Sprintf("disable auto-selecting the only compatible mixin for category %q", category))
 				noAutoFlags[category] = na
 			}
@@ -72,18 +70,9 @@ func newGenerateCmd() *cobra.Command {
 }
 
 func runGenerate(catalog *mixin.Catalog, categoryFlags map[string]*string, noAuto bool, noAutoFlags map[string]*bool, outPath string) error {
-	sel := mixin.Selection{}
-
-	for _, category := range catalog.CategoryNames() {
-		id := *categoryFlags[category]
-		if id == "" {
-			continue
-		}
-		m, ok := catalog.Find(category, id)
-		if !ok {
-			return fmt.Errorf("unknown mixin %q for category %q", id, category)
-		}
-		sel[category] = m
+	sel, err := selectionFromFlags(catalog, categoryFlags)
+	if err != nil {
+		return err
 	}
 
 	order, err := catalog.OrderedCategories()
@@ -121,17 +110,35 @@ func runGenerate(catalog *mixin.Catalog, categoryFlags map[string]*string, noAut
 		return err
 	}
 
+	if err := writeEnvFile(outPath, sel, kv); err != nil {
+		return err
+	}
+
+	fmt.Printf("wrote %s\n", outPath)
+	return nil
+}
+
+// writeEnvFile writes kv as a .env file to outPath, preceded by a marker
+// comment embedding sel so a later `regenerate` can reproduce it without
+// prompting.
+func writeEnvFile(outPath string, sel mixin.Selection, kv map[string]string) error {
+	comment, err := mixin.EncodeSelectionComment(sel)
+	if err != nil {
+		return err
+	}
+
 	f, err := os.Create(outPath)
 	if err != nil {
 		return fmt.Errorf("creating %q: %w", outPath, err)
 	}
 	defer f.Close()
 
+	if _, err := fmt.Fprintln(f, comment); err != nil {
+		return fmt.Errorf("writing %q: %w", outPath, err)
+	}
 	if err := dotenv.Write(f, kv); err != nil {
 		return fmt.Errorf("writing %q: %w", outPath, err)
 	}
-
-	fmt.Printf("wrote %s\n", outPath)
 	return nil
 }
 
