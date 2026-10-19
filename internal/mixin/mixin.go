@@ -56,6 +56,87 @@ func (c *Catalog) CategoryNames() []string {
 	return names
 }
 
+// OrderedCategories returns category names topologically sorted so that a
+// category produces tags another category's mixins require/exclude is
+// ordered before that dependent category. Categories with no dependency
+// relationship are ordered alphabetically relative to each other. Returns an
+// error if the categories form a dependency cycle.
+func (c *Catalog) OrderedCategories() ([]string, error) {
+	produces := map[string]map[string]bool{}
+	requires := map[string]map[string]bool{}
+	for category, mixins := range c.Categories {
+		produces[category] = map[string]bool{}
+		requires[category] = map[string]bool{}
+		for _, m := range mixins {
+			for k := range m.Tags {
+				produces[category][k] = true
+			}
+			for _, e := range m.Requires {
+				for _, k := range e.Keys() {
+					requires[category][k] = true
+				}
+			}
+			for _, e := range m.Excludes {
+				for _, k := range e.Keys() {
+					requires[category][k] = true
+				}
+			}
+		}
+	}
+
+	// deps[category] is the set of categories that must be ordered first.
+	deps := map[string]map[string]bool{}
+	for category := range c.Categories {
+		deps[category] = map[string]bool{}
+		for other := range c.Categories {
+			if other == category {
+				continue
+			}
+			for k := range requires[category] {
+				if produces[other][k] {
+					deps[category][other] = true
+				}
+			}
+		}
+	}
+
+	var order []string
+	remaining := c.CategoryNames()
+	for len(remaining) > 0 {
+		var ready []string
+		for _, category := range remaining {
+			if len(deps[category]) == 0 {
+				ready = append(ready, category)
+			}
+		}
+		if len(ready) == 0 {
+			sort.Strings(remaining)
+			return nil, fmt.Errorf("dependency cycle detected among categories: %s", strings.Join(remaining, ", "))
+		}
+		sort.Strings(ready)
+		order = append(order, ready...)
+
+		readySet := map[string]bool{}
+		for _, category := range ready {
+			readySet[category] = true
+		}
+		var next []string
+		for _, category := range remaining {
+			if readySet[category] {
+				continue
+			}
+			for dep := range deps[category] {
+				if readySet[dep] {
+					delete(deps[category], dep)
+				}
+			}
+			next = append(next, category)
+		}
+		remaining = next
+	}
+	return order, nil
+}
+
 // Find returns the mixin with the given id within a category.
 func (c *Catalog) Find(category, id string) (Mixin, bool) {
 	for _, m := range c.Categories[category] {

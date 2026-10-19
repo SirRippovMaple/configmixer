@@ -2,6 +2,15 @@ package mixin
 
 import "testing"
 
+func indexOf(s []string, v string) int {
+	for i, x := range s {
+		if x == v {
+			return i
+		}
+	}
+	return -1
+}
+
 func testCatalog() *Catalog {
 	dev := Mixin{ID: "dev", Category: "environment", Tags: map[string]string{"env": "dev"}}
 	prod := Mixin{ID: "prod", Category: "environment", Tags: map[string]string{"env": "prod"}}
@@ -80,5 +89,44 @@ func TestCompatibleChoices(t *testing.T) {
 	accountChoices := CompatibleChoices(cat, "facebook-account", partial)
 	if len(accountChoices) != 1 {
 		t.Errorf("expected facebook-account to always be compatible, got %v", accountChoices)
+	}
+}
+
+func TestOrderedCategories(t *testing.T) {
+	cat := testCatalog()
+	order, err := cat.OrderedCategories()
+	if err != nil {
+		t.Fatalf("OrderedCategories: %v", err)
+	}
+	if len(order) != len(cat.Categories) {
+		t.Fatalf("expected %d categories, got %v", len(cat.Categories), order)
+	}
+
+	envIdx := indexOf(order, "environment")
+	tenantIdx := indexOf(order, "tenant")
+	fbAppIdx := indexOf(order, "facebook-app")
+
+	if envIdx > tenantIdx {
+		t.Errorf("expected environment before tenant, got order %v", order)
+	}
+	if envIdx > fbAppIdx {
+		t.Errorf("expected environment before facebook-app, got order %v", order)
+	}
+}
+
+func TestOrderedCategoriesCycle(t *testing.T) {
+	aReq, _ := ParseExpr("b == x")
+	bReq, _ := ParseExpr("a == x")
+
+	a := Mixin{ID: "a1", Category: "a", Tags: map[string]string{"a": "x"}, Requires: []Expr{aReq}}
+	b := Mixin{ID: "b1", Category: "b", Tags: map[string]string{"b": "x"}, Requires: []Expr{bReq}}
+
+	cat := &Catalog{Categories: map[string][]Mixin{
+		"a": {a},
+		"b": {b},
+	}}
+
+	if _, err := cat.OrderedCategories(); err == nil {
+		t.Error("expected error for dependency cycle, got nil")
 	}
 }

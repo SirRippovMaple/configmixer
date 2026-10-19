@@ -81,8 +81,13 @@ func runGenerate(catalog *mixin.Catalog, categoryFlags map[string]*string, outPa
 		sel[category] = m
 	}
 
+	order, err := catalog.OrderedCategories()
+	if err != nil {
+		return err
+	}
+
 	reader := bufio.NewReader(os.Stdin)
-	for _, category := range catalog.CategoryNames() {
+	for _, category := range order {
 		if _, ok := sel[category]; ok {
 			continue
 		}

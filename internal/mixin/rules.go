@@ -9,6 +9,8 @@ import (
 type Expr interface {
 	Eval(tags map[string]string) bool
 	String() string
+	// Keys returns the tag keys referenced by this expression.
+	Keys() []string
 }
 
 type cmpExpr struct {
@@ -16,6 +18,8 @@ type cmpExpr struct {
 	value string
 	neq   bool
 }
+
+func (e cmpExpr) Keys() []string { return []string{e.key} }
 
 func (e cmpExpr) Eval(tags map[string]string) bool {
 	v, ok := tags[e.key]
@@ -37,11 +41,13 @@ type andExpr struct{ left, right Expr }
 
 func (e andExpr) Eval(tags map[string]string) bool { return e.left.Eval(tags) && e.right.Eval(tags) }
 func (e andExpr) String() string                   { return fmt.Sprintf("(%s && %s)", e.left, e.right) }
+func (e andExpr) Keys() []string                   { return append(e.left.Keys(), e.right.Keys()...) }
 
 type orExpr struct{ left, right Expr }
 
 func (e orExpr) Eval(tags map[string]string) bool { return e.left.Eval(tags) || e.right.Eval(tags) }
 func (e orExpr) String() string                   { return fmt.Sprintf("(%s || %s)", e.left, e.right) }
+func (e orExpr) Keys() []string                    { return append(e.left.Keys(), e.right.Keys()...) }
 
 // ParseExpr parses a tiny boolean tag-expression grammar:
 //
