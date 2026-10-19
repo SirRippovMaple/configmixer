@@ -1,0 +1,52 @@
+version: 2
+
+project_name: configmixer
+
+builds:
+  - id: configmixer
+    main: .
+    binary: configmixer
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - id: configmixer
+    ids: [configmixer]
+    formats: [tar.gz]
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^test:"
+      - "^docs:"
+
+homebrew_casks:
+  - name: configmixer
+    repository:
+      owner: SirRippovMaple
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Casks
+    homepage: "https://github.com/SirRippovMaple/configmixer"
+    description: "Generate a .env file by mixing disjoint, rule-validated config mixins together"
+    license: "MIT"
+    binaries:
+      - configmixer

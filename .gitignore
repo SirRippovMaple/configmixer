@@ -1,3 +1,4 @@
 /configmixer
 *.env
 !testdata/**/*.env
+/dist

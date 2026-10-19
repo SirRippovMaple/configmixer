@@ -10,7 +10,16 @@ pairs into a single `.env` file.
 The set of categories isn't hardcoded: it's just whatever subdirectories
 exist under your mixins directory, so the same binary works for any domain.
 
-## Install / build
+## Install
+
+### Homebrew
+
+```sh
+brew tap SirRippovMaple/tap
+brew install configmixer
+```
+
+### From source
 
 ```sh
 go build -o configmixer .

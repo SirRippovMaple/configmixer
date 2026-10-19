@@ -3,10 +3,11 @@ package cmd
 import "github.com/spf13/cobra"
 
 // NewRootCmd builds the configmixer root command.
-func NewRootCmd() *cobra.Command {
+func NewRootCmd(version string) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "configmixer",
 		Short:         "Mix disjoint config mixins into a single .env file",
+		Version:       version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
