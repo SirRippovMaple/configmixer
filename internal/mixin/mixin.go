@@ -157,7 +157,7 @@ func LoadAll(root string) (*Catalog, error) {
 
 	cat := &Catalog{Categories: map[string][]Mixin{}}
 	for _, entry := range entries {
-		if !entry.IsDir() {
+		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
 			continue
 		}
 		category := entry.Name()

@@ -1,6 +1,10 @@
 package mixin
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestLoadAll(t *testing.T) {
 	cat, err := LoadAll("../../testdata/mixins")
@@ -36,6 +40,36 @@ func TestLoadAll(t *testing.T) {
 	}
 	if len(acme.Requires) != 1 {
 		t.Fatalf("acme.Requires = %v, want 1 entry", acme.Requires)
+	}
+}
+
+func TestLoadAllIgnoresDotDirectories(t *testing.T) {
+	root := t.TempDir()
+
+	envDir := filepath.Join(root, "environment")
+	if err := os.MkdirAll(envDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(envDir, "dev.yaml"), []byte("tags:\n  env: dev\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	hiddenDir := filepath.Join(root, ".scripts")
+	if err := os.MkdirAll(hiddenDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(hiddenDir, "stray.yaml"), []byte("tags:\n  bogus: true\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	cat, err := LoadAll(root)
+	if err != nil {
+		t.Fatalf("LoadAll: %v", err)
+	}
+
+	names := cat.CategoryNames()
+	if len(names) != 1 || names[0] != "environment" {
+		t.Fatalf("categories = %v, want only [environment]", names)
 	}
 }
 
