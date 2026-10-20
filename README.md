@@ -345,7 +345,7 @@ error: incompatible selection:
 
 An equivalent, runnable fixture (using the names `facebook-app` /
 `facebook-account` for its categories) lives under
-[`testdata/mixins`](testdata/mixins) in this repo, and is used by the
+[`testdata/.configmixer`](testdata/.configmixer) in this repo, and is used by the
 automated tests.
 
 ## Development

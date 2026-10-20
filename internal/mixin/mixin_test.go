@@ -7,7 +7,7 @@ import (
 )
 
 func TestLoadAll(t *testing.T) {
-	cat, err := LoadAll("../../testdata/mixins")
+	cat, err := LoadAll("../../testdata/.configmixer")
 	if err != nil {
 		t.Fatalf("LoadAll: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestLoadAllIgnoresDotDirectories(t *testing.T) {
 }
 
 func TestLoadAllAndValidateFullSelection(t *testing.T) {
-	cat, err := LoadAll("../../testdata/mixins")
+	cat, err := LoadAll("../../testdata/.configmixer")
 	if err != nil {
 		t.Fatalf("LoadAll: %v", err)
 	}
