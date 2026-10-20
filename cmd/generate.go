@@ -1,15 +1,15 @@
 package cmd
 
 import (
-	"bufio"
+	"errors"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"configmixer/internal/dotenv"
 	"configmixer/internal/mixin"
 
+	"github.com/koki-develop/go-fzf"
 	"github.com/spf13/cobra"
 )
 
@@ -80,7 +80,6 @@ func runGenerate(catalog *mixin.Catalog, categoryFlags map[string]*string, noAut
 		return err
 	}
 
-	reader := bufio.NewReader(os.Stdin)
 	for _, category := range order {
 		if _, ok := sel[category]; ok {
 			continue
@@ -94,7 +93,7 @@ func runGenerate(catalog *mixin.Catalog, categoryFlags map[string]*string, noAut
 			fmt.Printf("auto-selected %s: %s\n", category, choices[0].ID)
 			continue
 		}
-		chosen, err := promptChoice(reader, category, choices)
+		chosen, err := promptChoice(category, choices)
 		if err != nil {
 			return err
 		}
@@ -166,23 +165,24 @@ func hasHelpFlag(args []string) bool {
 	return false
 }
 
-func promptChoice(reader *bufio.Reader, category string, choices []mixin.Mixin) (mixin.Mixin, error) {
-	fmt.Printf("Select %s:\n", category)
+func promptChoice(category string, choices []mixin.Mixin) (mixin.Mixin, error) {
+	items := make([]string, len(choices))
 	for i, m := range choices {
-		fmt.Printf("  %d) %s\n", i+1, m.ID)
+		items[i] = m.ID
 	}
-	for {
-		fmt.Print("> ")
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			return mixin.Mixin{}, fmt.Errorf("reading input: %w", err)
-		}
-		line = strings.TrimSpace(line)
-		n, err := strconv.Atoi(line)
-		if err != nil || n < 1 || n > len(choices) {
-			fmt.Printf("enter a number between 1 and %d\n", len(choices))
-			continue
-		}
-		return choices[n-1], nil
+
+	f, err := fzf.New(fzf.WithPrompt(category + "> "))
+	if err != nil {
+		return mixin.Mixin{}, fmt.Errorf("initializing selector: %w", err)
 	}
+
+	idxs, err := f.Find(items, func(i int) string { return items[i] })
+	if err != nil {
+		if errors.Is(err, fzf.ErrAbort) {
+			return mixin.Mixin{}, errors.New("selection cancelled")
+		}
+		return mixin.Mixin{}, fmt.Errorf("selecting %s: %w", category, err)
+	}
+
+	return choices[idxs[0]], nil
 }
