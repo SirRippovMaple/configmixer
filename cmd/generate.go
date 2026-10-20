@@ -63,6 +63,12 @@ func newGenerateCmd() *cobra.Command {
 				return err
 			}
 
+			for _, category := range catalog.CategoryNames() {
+				if *categoryFlags[category] != "" && *noAutoFlags[category] {
+					return fmt.Errorf("--%s and --no-auto-%s are mutually exclusive", category, category)
+				}
+			}
+
 			return runGenerate(catalog, categoryFlags, noAuto, noAutoFlags, outPath)
 		},
 	}
