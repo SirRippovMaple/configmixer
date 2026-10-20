@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"configmixer/internal/mixin"
 
@@ -10,8 +11,8 @@ import (
 
 // categoryFlagNames returns the derived flag names for a category, used both
 // to register flags and to check for name collisions up front.
-func categoryFlagNames(category string) [3]string {
-	return [3]string{"select-" + category, "no-auto-" + category, "no-default-" + category}
+func categoryFlagNames(category string) [4]string {
+	return [4]string{"select-" + category, "no-auto-" + category, "no-default-" + category, "prompt-" + category}
 }
 
 // checkFlagNameCollisions verifies that every per-category flag name
@@ -57,23 +58,41 @@ func registerNoDefaultFlags(c *cobra.Command, catalog *mixin.Catalog) map[string
 	return noDefaultFlags
 }
 
-// checkCategoryFlagExclusivity errors if more than one of
-// --select-<category>, --no-auto-<category>, and --no-default-<category> is
-// set for any category.
-func checkCategoryFlagExclusivity(catalog *mixin.Catalog, categoryFlags map[string]*string, noAutoFlags, noDefaultFlags map[string]*bool) error {
+// registerPromptFlags registers one bool flag per category that forces an
+// interactive prompt for that category, bypassing any embedded selection or
+// configured default.
+func registerPromptFlags(c *cobra.Command, catalog *mixin.Catalog) map[string]*bool {
+	promptFlags := map[string]*bool{}
 	for _, category := range catalog.CategoryNames() {
-		set := 0
+		v := c.Flags().Bool("prompt-"+category, false, fmt.Sprintf("force an interactive prompt for category %q", category))
+		promptFlags[category] = v
+	}
+	return promptFlags
+}
+
+// categoryBoolFlag names a bool-typed per-category flag set for use in
+// checkCategoryFlagExclusivity's mutual-exclusivity check.
+type categoryBoolFlag struct {
+	namePrefix string
+	flags      map[string]*bool
+}
+
+// checkCategoryFlagExclusivity errors if more than one of --select-<category>
+// and the given bool-typed per-category flag sets (e.g. --no-auto-<category>,
+// --no-default-<category>, --prompt-<category>) is set for any category.
+func checkCategoryFlagExclusivity(catalog *mixin.Catalog, categoryFlags map[string]*string, boolFlagSets ...categoryBoolFlag) error {
+	for _, category := range catalog.CategoryNames() {
+		var set []string
 		if *categoryFlags[category] != "" {
-			set++
+			set = append(set, "--select-"+category)
 		}
-		if *noAutoFlags[category] {
-			set++
+		for _, bf := range boolFlagSets {
+			if *bf.flags[category] {
+				set = append(set, "--"+bf.namePrefix+category)
+			}
 		}
-		if *noDefaultFlags[category] {
-			set++
-		}
-		if set > 1 {
-			return fmt.Errorf("--select-%s, --no-auto-%s, and --no-default-%s are mutually exclusive", category, category, category)
+		if len(set) > 1 {
+			return fmt.Errorf("%s are mutually exclusive", strings.Join(set, ", "))
 		}
 	}
 	return nil

@@ -68,7 +68,10 @@ func newGenerateCmd() *cobra.Command {
 				return err
 			}
 
-			if err := checkCategoryFlagExclusivity(catalog, categoryFlags, noAutoFlags, noDefaultFlags); err != nil {
+			if err := checkCategoryFlagExclusivity(catalog, categoryFlags,
+				categoryBoolFlag{"no-auto-", noAutoFlags},
+				categoryBoolFlag{"no-default-", noDefaultFlags},
+			); err != nil {
 				return err
 			}
 

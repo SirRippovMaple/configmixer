@@ -41,6 +41,7 @@ func newRegenerateCmd() *cobra.Command {
 
 			categoryFlags := registerCategoryIDFlags(c, catalog)
 			noDefaultFlags := registerNoDefaultFlags(c, catalog)
+			promptFlags := registerPromptFlags(c, catalog)
 
 			if helpRequested {
 				return c.Help()
@@ -50,12 +51,10 @@ func newRegenerateCmd() *cobra.Command {
 				return err
 			}
 
-			noAutoFlags := map[string]*bool{}
-			for _, category := range catalog.CategoryNames() {
-				no := false
-				noAutoFlags[category] = &no
-			}
-			if err := checkCategoryFlagExclusivity(catalog, categoryFlags, noAutoFlags, noDefaultFlags); err != nil {
+			if err := checkCategoryFlagExclusivity(catalog, categoryFlags,
+				categoryBoolFlag{"no-default-", noDefaultFlags},
+				categoryBoolFlag{"prompt-", promptFlags},
+			); err != nil {
 				return err
 			}
 
@@ -64,13 +63,13 @@ func newRegenerateCmd() *cobra.Command {
 				return err
 			}
 
-			return runRegenerate(catalog, cfg, categoryFlags, noDefaultFlags, outPath)
+			return runRegenerate(catalog, cfg, categoryFlags, noDefaultFlags, promptFlags, outPath)
 		},
 	}
 	return cmd
 }
 
-func runRegenerate(catalog *mixin.Catalog, cfg *mixin.Config, categoryFlags map[string]*string, noDefaultFlags map[string]*bool, outPath string) error {
+func runRegenerate(catalog *mixin.Catalog, cfg *mixin.Config, categoryFlags map[string]*string, noDefaultFlags, promptFlags map[string]*bool, outPath string) error {
 	embedded, err := readEmbeddedSelection(outPath)
 	if err != nil {
 		return err
@@ -88,6 +87,9 @@ func runRegenerate(catalog *mixin.Catalog, cfg *mixin.Config, categoryFlags map[
 		if _, exists := catalog.Categories[category]; !exists {
 			continue
 		}
+		if *promptFlags[category] {
+			continue
+		}
 		m, ok := catalog.Find(category, id)
 		if !ok {
 			return fmt.Errorf("embedded selection for category %q references unknown mixin %q; pass --select-%s to override", category, id, category)
@@ -102,6 +104,21 @@ func runRegenerate(catalog *mixin.Catalog, cfg *mixin.Config, categoryFlags map[
 
 	for _, category := range order {
 		if _, ok := sel[category]; ok {
+			continue
+		}
+		if *promptFlags[category] {
+			choices := mixin.CompatibleChoices(catalog, category, sel)
+			switch len(choices) {
+			case 0:
+				return fmt.Errorf("no compatible mixin available for category %q given current selection", category)
+			case 1:
+				return fmt.Errorf("category %q has only one compatible mixin (%s); nothing to prompt for", category, choices[0].ID)
+			}
+			chosen, err := promptChoice(category, choices)
+			if err != nil {
+				return err
+			}
+			sel[category] = chosen
 			continue
 		}
 		if defaultID, ok := cfg.Defaults[category]; ok && !*noDefaultFlags[category] {

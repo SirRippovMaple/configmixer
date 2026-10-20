@@ -197,6 +197,24 @@ wrote .env
 The overridden selection becomes the new embedded selection — a later bare
 `regenerate` reproduces the overridden result, not the original one.
 
+Pass `--prompt-<category>` to force an interactive prompt for just that
+category, bypassing both its embedded selection and any configured default,
+while every other category still resolves automatically:
+
+```sh
+$ configmixer regenerate --mixins-dir ./mixins --out .env --prompt-oauth-account
+Select oauth-account:
+  1) main
+  2) generated
+> 2
+wrote .env
+```
+
+It's an error to pass `--prompt-<category>` for a category with only one
+compatible mixin, since there's nothing to choose between. It's also
+mutually exclusive with `--select-<category>` and `--no-default-<category>`
+for the same category.
+
 Flags:
 
 | Flag             | Default      | Description                                  |
@@ -204,6 +222,8 @@ Flags:
 | `--mixins-dir`   | `.configmixer` | Directory containing mixin categories       |
 | `--out`          | `.env`       | Path to the `.env` file to read from and overwrite |
 | `--select-<category>` | *(embedded)* | One flag per discovered category to override the embedded selection |
+| `--no-default-<category>` | `false` | Disable the configured default mixin for that category |
+| `--prompt-<category>` | `false` | Force an interactive prompt for that category |
 
 ## Worked example
 
