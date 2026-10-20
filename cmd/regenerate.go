@@ -35,6 +35,10 @@ func newRegenerateCmd() *cobra.Command {
 				return err
 			}
 
+			if err := checkFlagNameCollisions(catalog, []string{"mixins-dir", "out"}); err != nil {
+				return err
+			}
+
 			categoryFlags := registerCategoryIDFlags(c, catalog)
 			noDefaultFlags := registerNoDefaultFlags(c, catalog)
 
@@ -86,7 +90,7 @@ func runRegenerate(catalog *mixin.Catalog, cfg *mixin.Config, categoryFlags map[
 		}
 		m, ok := catalog.Find(category, id)
 		if !ok {
-			return fmt.Errorf("embedded selection for category %q references unknown mixin %q; pass --%s to override", category, id, category)
+			return fmt.Errorf("embedded selection for category %q references unknown mixin %q; pass --select-%s to override", category, id, category)
 		}
 		sel[category] = m
 	}
@@ -127,7 +131,7 @@ func runRegenerate(catalog *mixin.Catalog, cfg *mixin.Config, categoryFlags map[
 			sel[category] = choices[0]
 			fmt.Printf("auto-selected %s: %s\n", category, choices[0].ID)
 		default:
-			return fmt.Errorf("category %q has no embedded or flag-provided selection and %d compatible mixins; pass --%s to disambiguate (regenerate does not prompt)", category, len(choices), category)
+			return fmt.Errorf("category %q has no embedded or flag-provided selection and %d compatible mixins; pass --select-%s to disambiguate (regenerate does not prompt)", category, len(choices), category)
 		}
 	}
 

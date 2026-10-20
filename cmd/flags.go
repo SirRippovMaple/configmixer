@@ -8,12 +8,39 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// categoryFlagNames returns the derived flag names for a category, used both
+// to register flags and to check for name collisions up front.
+func categoryFlagNames(category string) [3]string {
+	return [3]string{"select-" + category, "no-auto-" + category, "no-default-" + category}
+}
+
+// checkFlagNameCollisions verifies that every per-category flag name
+// (--select-<category>, --no-auto-<category>, --no-default-<category>) is
+// unique and doesn't collide with any of the fixed flags already registered
+// on c, returning a clear error instead of letting pflag panic on a
+// duplicate flag registration.
+func checkFlagNameCollisions(catalog *mixin.Catalog, fixedNames []string) error {
+	seen := map[string]string{}
+	for _, name := range fixedNames {
+		seen[name] = "a built-in flag"
+	}
+	for _, category := range catalog.CategoryNames() {
+		for _, name := range categoryFlagNames(category) {
+			if owner, ok := seen[name]; ok {
+				return fmt.Errorf("category %q produces flag --%s, which collides with %s; rename the category directory", category, name, owner)
+			}
+			seen[name] = fmt.Sprintf("category %q", category)
+		}
+	}
+	return nil
+}
+
 // registerCategoryIDFlags registers one string flag per category (a mixin id
 // override for that category) and returns the map of flag value pointers.
 func registerCategoryIDFlags(c *cobra.Command, catalog *mixin.Catalog) map[string]*string {
 	categoryFlags := map[string]*string{}
 	for _, category := range catalog.CategoryNames() {
-		v := c.Flags().String(category, "", fmt.Sprintf("mixin id to select for category %q", category))
+		v := c.Flags().String("select-"+category, "", fmt.Sprintf("mixin id to select for category %q", category))
 		categoryFlags[category] = v
 	}
 	return categoryFlags
@@ -30,8 +57,9 @@ func registerNoDefaultFlags(c *cobra.Command, catalog *mixin.Catalog) map[string
 	return noDefaultFlags
 }
 
-// checkCategoryFlagExclusivity errors if more than one of --<category>,
-// --no-auto-<category>, and --no-default-<category> is set for any category.
+// checkCategoryFlagExclusivity errors if more than one of
+// --select-<category>, --no-auto-<category>, and --no-default-<category> is
+// set for any category.
 func checkCategoryFlagExclusivity(catalog *mixin.Catalog, categoryFlags map[string]*string, noAutoFlags, noDefaultFlags map[string]*bool) error {
 	for _, category := range catalog.CategoryNames() {
 		set := 0
@@ -45,7 +73,7 @@ func checkCategoryFlagExclusivity(catalog *mixin.Catalog, categoryFlags map[stri
 			set++
 		}
 		if set > 1 {
-			return fmt.Errorf("--%s, --no-auto-%s, and --no-default-%s are mutually exclusive", category, category, category)
+			return fmt.Errorf("--select-%s, --no-auto-%s, and --no-default-%s are mutually exclusive", category, category, category)
 		}
 	}
 	return nil

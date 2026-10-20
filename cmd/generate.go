@@ -48,6 +48,10 @@ func newGenerateCmd() *cobra.Command {
 				return err
 			}
 
+			if err := checkFlagNameCollisions(catalog, []string{"mixins-dir", "out", "no-auto"}); err != nil {
+				return err
+			}
+
 			categoryFlags := registerCategoryIDFlags(c, catalog)
 			noAutoFlags := map[string]*bool{}
 			for _, category := range catalog.CategoryNames() {

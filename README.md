@@ -110,17 +110,17 @@ Pass a category name to filter: `configmixer list --mixins-dir ./mixins tenant`.
 
 ### `configmixer generate`
 
-Select one mixin per category, either via flags (one `--<category>` flag per
-category discovered in your mixins directory) or interactively for whatever
-you don't specify:
+Select one mixin per category, either via flags (one `--select-<category>` flag
+per category discovered in your mixins directory) or interactively for
+whatever you don't specify:
 
 ```sh
 configmixer generate \
   --mixins-dir ./mixins \
-  --environment dev \
-  --tenant acme \
-  --oauth-app dev \
-  --oauth-account main \
+  --select-environment dev \
+  --select-tenant acme \
+  --select-oauth-app dev \
+  --select-oauth-account main \
   --out .env
 ```
 
@@ -132,7 +132,7 @@ Omit any category flag to be prompted for it, restricted to choices that are
 actually compatible with what you've already picked:
 
 ```sh
-$ configmixer generate --mixins-dir ./mixins --environment dev
+$ configmixer generate --mixins-dir ./mixins --select-environment dev
 Select tenant:
   1) acme
 > 1
@@ -152,7 +152,7 @@ An incompatible combination fails clearly instead of silently producing a
 broken `.env`:
 
 ```sh
-$ configmixer generate --mixins-dir ./mixins --environment dev --oauth-app prod ...
+$ configmixer generate --mixins-dir ./mixins --select-environment dev --select-oauth-app prod ...
 error: incompatible selection:
   - oauth-app/prod requires env == prod
 ```
@@ -163,7 +163,7 @@ Flags:
 |------------------|--------------|-----------------------------------------------|
 | `--mixins-dir`   | `.configmixer` | Directory containing mixin categories       |
 | `--out`          | `.env`       | Path to write the generated `.env` file       |
-| `--<category>`   | *(prompt)*   | One flag per discovered category, e.g. `--environment`, `--tenant` |
+| `--select-<category>` | *(prompt)* | One flag per discovered category, e.g. `--select-environment`, `--select-tenant` |
 
 The generated `.env` carries a marker comment (`# configmixer-selection: {...}`)
 recording which mixin id was chosen per category. `dotenv` parsing ignores
@@ -182,15 +182,15 @@ $ configmixer regenerate --mixins-dir ./mixins --out .env
 wrote .env
 ```
 
-Pass `--<category>` flags to override part or all of the embedded selection,
+Pass `--select-<category>` flags to override part or all of the embedded selection,
 as long as the result still passes the same compatibility checks `generate`
 uses:
 
 ```sh
-$ configmixer regenerate --mixins-dir ./mixins --out .env --environment prod
+$ configmixer regenerate --mixins-dir ./mixins --out .env --select-environment prod
 error: incompatible selection:
   - tenant/acme requires env == dev
-$ configmixer regenerate --mixins-dir ./mixins --out .env --environment prod --tenant globex --oauth-app prod
+$ configmixer regenerate --mixins-dir ./mixins --out .env --select-environment prod --select-tenant globex --select-oauth-app prod
 wrote .env
 ```
 
@@ -203,7 +203,7 @@ Flags:
 |------------------|--------------|-----------------------------------------------|
 | `--mixins-dir`   | `.configmixer` | Directory containing mixin categories       |
 | `--out`          | `.env`       | Path to the `.env` file to read from and overwrite |
-| `--<category>`   | *(embedded)* | One flag per discovered category to override the embedded selection |
+| `--select-<category>` | *(embedded)* | One flag per discovered category to override the embedded selection |
 
 ## Worked example
 
@@ -303,7 +303,7 @@ Generating with a valid combination:
 
 ```sh
 $ configmixer generate --mixins-dir mixins \
-    --environment dev --tenant acme --oauth-app dev --oauth-account main
+    --select-environment dev --select-tenant acme --select-oauth-app dev --select-oauth-account main
 wrote .env
 $ cat .env
 APP_ENV=development
@@ -320,7 +320,7 @@ Swapping in the script-backed account mixin instead:
 
 ```sh
 $ configmixer generate --mixins-dir mixins \
-    --environment dev --tenant acme --oauth-app dev --oauth-account generated
+    --select-environment dev --select-tenant acme --select-oauth-app dev --select-oauth-account generated
 wrote .env
 $ cat .env
 APP_ENV=development
@@ -338,7 +338,7 @@ fails, since those declare `requires: env == prod`:
 
 ```sh
 $ configmixer generate --mixins-dir mixins \
-    --environment dev --tenant globex --oauth-app dev --oauth-account main
+    --select-environment dev --select-tenant globex --select-oauth-app dev --select-oauth-account main
 error: incompatible selection:
   - tenant/globex requires env == prod
 ```
