@@ -36,6 +36,7 @@ func newRegenerateCmd() *cobra.Command {
 			}
 
 			categoryFlags := registerCategoryIDFlags(c, catalog)
+			noDefaultFlags := registerNoDefaultFlags(c, catalog)
 
 			if helpRequested {
 				return c.Help()
@@ -45,13 +46,27 @@ func newRegenerateCmd() *cobra.Command {
 				return err
 			}
 
-			return runRegenerate(catalog, categoryFlags, outPath)
+			noAutoFlags := map[string]*bool{}
+			for _, category := range catalog.CategoryNames() {
+				no := false
+				noAutoFlags[category] = &no
+			}
+			if err := checkCategoryFlagExclusivity(catalog, categoryFlags, noAutoFlags, noDefaultFlags); err != nil {
+				return err
+			}
+
+			cfg, err := mixin.LoadConfig(mixinsDir, catalog)
+			if err != nil {
+				return err
+			}
+
+			return runRegenerate(catalog, cfg, categoryFlags, noDefaultFlags, outPath)
 		},
 	}
 	return cmd
 }
 
-func runRegenerate(catalog *mixin.Catalog, categoryFlags map[string]*string, outPath string) error {
+func runRegenerate(catalog *mixin.Catalog, cfg *mixin.Config, categoryFlags map[string]*string, noDefaultFlags map[string]*bool, outPath string) error {
 	embedded, err := readEmbeddedSelection(outPath)
 	if err != nil {
 		return err
@@ -83,6 +98,25 @@ func runRegenerate(catalog *mixin.Catalog, categoryFlags map[string]*string, out
 
 	for _, category := range order {
 		if _, ok := sel[category]; ok {
+			continue
+		}
+		if defaultID, ok := cfg.Defaults[category]; ok && !*noDefaultFlags[category] {
+			m, ok := catalog.Find(category, defaultID)
+			if !ok {
+				return fmt.Errorf("default mixin %q for category %q no longer exists", defaultID, category)
+			}
+			compatible := false
+			for _, choice := range mixin.CompatibleChoices(catalog, category, sel) {
+				if choice.ID == m.ID {
+					compatible = true
+					break
+				}
+			}
+			if !compatible {
+				return fmt.Errorf("default mixin %q for category %q is not compatible with the current selection", defaultID, category)
+			}
+			sel[category] = m
+			fmt.Printf("default %s: %s\n", category, m.ID)
 			continue
 		}
 		choices := mixin.CompatibleChoices(catalog, category, sel)

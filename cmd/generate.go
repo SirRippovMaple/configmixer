@@ -54,6 +54,7 @@ func newGenerateCmd() *cobra.Command {
 				na := c.Flags().Bool("no-auto-"+category, false, fmt.Sprintf("disable auto-selecting the only compatible mixin for category %q", category))
 				noAutoFlags[category] = na
 			}
+			noDefaultFlags := registerNoDefaultFlags(c, catalog)
 
 			if helpRequested {
 				return c.Help()
@@ -63,19 +64,22 @@ func newGenerateCmd() *cobra.Command {
 				return err
 			}
 
-			for _, category := range catalog.CategoryNames() {
-				if *categoryFlags[category] != "" && *noAutoFlags[category] {
-					return fmt.Errorf("--%s and --no-auto-%s are mutually exclusive", category, category)
-				}
+			if err := checkCategoryFlagExclusivity(catalog, categoryFlags, noAutoFlags, noDefaultFlags); err != nil {
+				return err
 			}
 
-			return runGenerate(catalog, categoryFlags, noAuto, noAutoFlags, outPath)
+			cfg, err := mixin.LoadConfig(mixinsDir, catalog)
+			if err != nil {
+				return err
+			}
+
+			return runGenerate(catalog, cfg, categoryFlags, noAuto, noAutoFlags, noDefaultFlags, outPath)
 		},
 	}
 	return cmd
 }
 
-func runGenerate(catalog *mixin.Catalog, categoryFlags map[string]*string, noAuto bool, noAutoFlags map[string]*bool, outPath string) error {
+func runGenerate(catalog *mixin.Catalog, cfg *mixin.Config, categoryFlags map[string]*string, noAuto bool, noAutoFlags, noDefaultFlags map[string]*bool, outPath string) error {
 	sel, err := selectionFromFlags(catalog, categoryFlags)
 	if err != nil {
 		return err
@@ -88,6 +92,25 @@ func runGenerate(catalog *mixin.Catalog, categoryFlags map[string]*string, noAut
 
 	for _, category := range order {
 		if _, ok := sel[category]; ok {
+			continue
+		}
+		if defaultID, ok := cfg.Defaults[category]; ok && !*noDefaultFlags[category] {
+			m, ok := catalog.Find(category, defaultID)
+			if !ok {
+				return fmt.Errorf("default mixin %q for category %q no longer exists", defaultID, category)
+			}
+			compatible := false
+			for _, choice := range mixin.CompatibleChoices(catalog, category, sel) {
+				if choice.ID == m.ID {
+					compatible = true
+					break
+				}
+			}
+			if !compatible {
+				return fmt.Errorf("default mixin %q for category %q is not compatible with the current selection", defaultID, category)
+			}
+			sel[category] = m
+			fmt.Printf("default %s: %s\n", category, m.ID)
 			continue
 		}
 		choices := mixin.CompatibleChoices(catalog, category, sel)
