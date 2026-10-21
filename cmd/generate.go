@@ -59,6 +59,7 @@ func newGenerateCmd() *cobra.Command {
 				noAutoFlags[category] = na
 			}
 			noDefaultFlags := registerNoDefaultFlags(c, catalog)
+			noScriptFlags := registerNoScriptFlags(c, catalog)
 
 			if helpRequested {
 				return c.Help()
@@ -74,19 +75,26 @@ func newGenerateCmd() *cobra.Command {
 			); err != nil {
 				return err
 			}
+			// --no-script-<category> may be combined with --no-default-<category>,
+			// so it's checked against --select-<category> separately.
+			if err := checkCategoryFlagExclusivity(catalog, categoryFlags,
+				categoryBoolFlag{"no-script-", noScriptFlags},
+			); err != nil {
+				return err
+			}
 
 			cfg, err := mixin.LoadConfig(mixinsDir, catalog)
 			if err != nil {
 				return err
 			}
 
-			return runGenerate(catalog, cfg, categoryFlags, noAuto, noAutoFlags, noDefaultFlags, outPath)
+			return runGenerate(catalog, cfg, categoryFlags, noAuto, noAutoFlags, noScriptFlags, noDefaultFlags, outPath)
 		},
 	}
 	return cmd
 }
 
-func runGenerate(catalog *mixin.Catalog, cfg *mixin.Config, categoryFlags map[string]*string, noAuto bool, noAutoFlags, noDefaultFlags map[string]*bool, outPath string) error {
+func runGenerate(catalog *mixin.Catalog, cfg *mixin.Config, categoryFlags map[string]*string, noAuto bool, noAutoFlags, noScriptFlags, noDefaultFlags map[string]*bool, outPath string) error {
 	sel, err := selectionFromFlags(catalog, categoryFlags)
 	if err != nil {
 		return err
@@ -97,7 +105,7 @@ func runGenerate(catalog *mixin.Catalog, cfg *mixin.Config, categoryFlags map[st
 		return err
 	}
 
-	if err := resolveDefaults(catalog, cfg, order, sel, noDefaultFlags, nil); err != nil {
+	if err := resolveConfigured(catalog, cfg, order, sel, noScriptFlags, noDefaultFlags, nil); err != nil {
 		return err
 	}
 

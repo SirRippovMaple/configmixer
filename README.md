@@ -82,6 +82,65 @@ script:                 # (optional) run a script to generate additional pairs
   or by two different selected mixins, is a hard error — there's no implicit
   precedence.
 
+### Configuration (`config.yaml`)
+
+An optional `config.yaml` at the root of the mixins directory configures how
+categories are resolved when no `--select-<category>` flag (or, for
+`regenerate`, embedded selection) picks one:
+
+```yaml
+defaults:                  # mixin id to use for a category
+  oauth-account: main
+selector-scripts:          # script that picks the mixin id for a category
+  oauth-account:
+    path: ./scripts/select-oauth-account.sh
+```
+
+A category is resolved in this order, first match wins:
+
+1. `--select-<category>` flag
+2. the selection embedded in the `.env` file (`regenerate` only)
+3. its selector script
+4. its default
+5. auto-selection (only one compatible mixin) or an interactive prompt
+
+`--prompt-<category>` skips 2–4 for that category. `--no-script-<category>`
+and `--no-default-<category>` skip 3 and 4 respectively, and can be combined.
+
+**Selector scripts.** `path` is resolved relative to `config.yaml` unless
+it's absolute. Categories are resolved in dependency order, and the script
+receives a JSON object on stdin describing what's been fixed so far:
+
+```json
+{
+  "category": "oauth-account",
+  "selection": {"environment": "dev", "tenant": "acme"},
+  "mixins": ["generated", "main"],
+  "valid": ["generated", "main"]
+}
+```
+
+- `selection` — the mixin id fixed so far for each category (from flags, the
+  embedded selection, and earlier selector scripts/defaults).
+- `mixins` — every mixin id in the category.
+- `valid` — the subset of `mixins` that doesn't conflict with `selection`.
+  A mixin whose `requires`/`excludes` depend on a category that isn't fixed
+  yet is still listed, since it can't be ruled out until that category is
+  resolved.
+
+The script prints the chosen mixin id on stdout. Printing nothing declines
+to choose. If the script declines, or prints an id that isn't in `valid`, the
+category falls back to its default (and then to auto-selection/prompting).
+A non-zero exit is a hard error.
+
+```sh
+#!/bin/sh
+# Use the generated account in dev, and decline (fall back to the default) elsewhere.
+if jq -e '.selection.environment == "dev"' >/dev/null; then
+  echo generated
+fi
+```
+
 ## Usage
 
 ### `configmixer list`
@@ -164,6 +223,8 @@ Flags:
 | `--mixins-dir`   | `.configmixer` | Directory containing mixin categories       |
 | `--out`          | `.env`       | Path to write the generated `.env` file       |
 | `--select-<category>` | *(prompt)* | One flag per discovered category, e.g. `--select-environment`, `--select-tenant` |
+| `--no-script-<category>` | `false` | Disable the configured selector script for that category |
+| `--no-default-<category>` | `false` | Disable the configured default mixin for that category |
 
 The generated `.env` carries a marker comment (`# configmixer-selection: {...}`)
 recording which mixin id was chosen per category. `dotenv` parsing ignores
@@ -198,7 +259,8 @@ The overridden selection becomes the new embedded selection — a later bare
 `regenerate` reproduces the overridden result, not the original one.
 
 Pass `--prompt-<category>` to force an interactive prompt for just that
-category, bypassing both its embedded selection and any configured default,
+category, bypassing its embedded selection and any configured selector script
+or default,
 while every other category still resolves automatically:
 
 ```sh
@@ -212,8 +274,8 @@ wrote .env
 
 It's an error to pass `--prompt-<category>` for a category with only one
 compatible mixin, since there's nothing to choose between. It's also
-mutually exclusive with `--select-<category>` and `--no-default-<category>`
-for the same category.
+mutually exclusive with `--select-<category>`, `--no-script-<category>` and
+`--no-default-<category>` for the same category.
 
 Flags:
 
@@ -222,6 +284,7 @@ Flags:
 | `--mixins-dir`   | `.configmixer` | Directory containing mixin categories       |
 | `--out`          | `.env`       | Path to the `.env` file to read from and overwrite |
 | `--select-<category>` | *(embedded)* | One flag per discovered category to override the embedded selection |
+| `--no-script-<category>` | `false` | Disable the configured selector script for that category |
 | `--no-default-<category>` | `false` | Disable the configured default mixin for that category |
 | `--prompt-<category>` | `false` | Force an interactive prompt for that category |
 

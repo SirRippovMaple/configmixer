@@ -30,6 +30,53 @@ func AggregateTags(sel Selection) map[string]string {
 // tags contributed by the OTHER mixins in the selection. It returns a single
 // error describing every violation found.
 func Validate(sel Selection) error {
+	problems := violations(sel, func(Expr, map[string]string) bool { return true })
+	if len(problems) == 0 {
+		return nil
+	}
+	return fmt.Errorf("incompatible selection:\n  - %s", strings.Join(problems, "\n  - "))
+}
+
+// IntroducedConflicts reports the requires/excludes violations that adding m
+// for category to partial definitely introduces. Since partial may still be
+// missing categories, a clause is only judged when every tag key it
+// references is present among the other selected mixins' tags; a clause that
+// depends on a still-open category can't be decided yet and is skipped
+// (Validate catches it once the selection is complete). Violations already
+// present in partial without m are not attributed to m.
+func IntroducedConflicts(partial Selection, category string, m Mixin) []string {
+	judgeable := func(e Expr, tags map[string]string) bool {
+		for _, k := range e.Keys() {
+			if _, ok := tags[k]; !ok {
+				return false
+			}
+		}
+		return true
+	}
+
+	existing := map[string]bool{}
+	for _, p := range violations(partial, judgeable) {
+		existing[p] = true
+	}
+
+	trial := Selection{}
+	maps.Copy(trial, partial)
+	trial[category] = m
+
+	var out []string
+	for _, p := range violations(trial, judgeable) {
+		if !existing[p] {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// violations checks every selected mixin's requires/excludes clauses against
+// the tags contributed by the OTHER mixins in the selection, skipping clauses
+// for which judgeable returns false. It returns a sorted description of each
+// violation found.
+func violations(sel Selection, judgeable func(Expr, map[string]string) bool) []string {
 	var problems []string
 	for category, m := range sel {
 		others := Selection{}
@@ -38,21 +85,18 @@ func Validate(sel Selection) error {
 		tags := AggregateTags(others)
 
 		for _, req := range m.Requires {
-			if !req.Eval(tags) {
+			if judgeable(req, tags) && !req.Eval(tags) {
 				problems = append(problems, fmt.Sprintf("%s/%s requires %s", category, m.ID, req))
 			}
 		}
 		for _, exc := range m.Excludes {
-			if exc.Eval(tags) {
+			if judgeable(exc, tags) && exc.Eval(tags) {
 				problems = append(problems, fmt.Sprintf("%s/%s excludes %s", category, m.ID, exc))
 			}
 		}
 	}
-	if len(problems) == 0 {
-		return nil
-	}
 	sort.Strings(problems)
-	return fmt.Errorf("incompatible selection:\n  - %s", strings.Join(problems, "\n  - "))
+	return problems
 }
 
 // CompatibleChoices filters a category's mixins down to those that produce a

@@ -41,6 +41,7 @@ func newRegenerateCmd() *cobra.Command {
 
 			categoryFlags := registerCategoryIDFlags(c, catalog)
 			noDefaultFlags := registerNoDefaultFlags(c, catalog)
+			noScriptFlags := registerNoScriptFlags(c, catalog)
 			promptFlags := registerPromptFlags(c, catalog)
 
 			if helpRequested {
@@ -57,19 +58,27 @@ func newRegenerateCmd() *cobra.Command {
 			); err != nil {
 				return err
 			}
+			// --no-script-<category> may be combined with --no-default-<category>,
+			// so it's checked against the other flags separately.
+			if err := checkCategoryFlagExclusivity(catalog, categoryFlags,
+				categoryBoolFlag{"no-script-", noScriptFlags},
+				categoryBoolFlag{"prompt-", promptFlags},
+			); err != nil {
+				return err
+			}
 
 			cfg, err := mixin.LoadConfig(mixinsDir, catalog)
 			if err != nil {
 				return err
 			}
 
-			return runRegenerate(catalog, cfg, categoryFlags, noDefaultFlags, promptFlags, outPath)
+			return runRegenerate(catalog, cfg, categoryFlags, noScriptFlags, noDefaultFlags, promptFlags, outPath)
 		},
 	}
 	return cmd
 }
 
-func runRegenerate(catalog *mixin.Catalog, cfg *mixin.Config, categoryFlags map[string]*string, noDefaultFlags, promptFlags map[string]*bool, outPath string) error {
+func runRegenerate(catalog *mixin.Catalog, cfg *mixin.Config, categoryFlags map[string]*string, noScriptFlags, noDefaultFlags, promptFlags map[string]*bool, outPath string) error {
 	embedded, err := readEmbeddedSelection(outPath)
 	if err != nil {
 		return err
@@ -102,7 +111,7 @@ func runRegenerate(catalog *mixin.Catalog, cfg *mixin.Config, categoryFlags map[
 		return err
 	}
 
-	if err := resolveDefaults(catalog, cfg, order, sel, noDefaultFlags, promptFlags); err != nil {
+	if err := resolveConfigured(catalog, cfg, order, sel, noScriptFlags, noDefaultFlags, promptFlags); err != nil {
 		return err
 	}
 

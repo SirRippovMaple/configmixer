@@ -60,3 +60,48 @@ func TestLoadConfigUnknownMixinID(t *testing.T) {
 		t.Error("expected error for unknown mixin id, got nil")
 	}
 }
+
+func TestLoadConfigSelectorScripts(t *testing.T) {
+	dir := t.TempDir()
+	writeConfigFile(t, dir, "selector-scripts:\n  environment:\n    path: ./scripts/select.sh\n")
+
+	cfg, err := LoadConfig(dir, testConfigCatalog())
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	want := filepath.Join(dir, "scripts", "select.sh")
+	if got := cfg.SelectorScripts["environment"].Path; got != want {
+		t.Errorf("SelectorScripts[environment].Path = %q, want %q", got, want)
+	}
+}
+
+func TestLoadConfigSelectorScriptAbsolutePath(t *testing.T) {
+	dir := t.TempDir()
+	writeConfigFile(t, dir, "selector-scripts:\n  environment:\n    path: /opt/select.sh\n")
+
+	cfg, err := LoadConfig(dir, testConfigCatalog())
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if got := cfg.SelectorScripts["environment"].Path; got != "/opt/select.sh" {
+		t.Errorf("SelectorScripts[environment].Path = %q, want /opt/select.sh", got)
+	}
+}
+
+func TestLoadConfigSelectorScriptUnknownCategory(t *testing.T) {
+	dir := t.TempDir()
+	writeConfigFile(t, dir, "selector-scripts:\n  bogus:\n    path: ./select.sh\n")
+
+	if _, err := LoadConfig(dir, testConfigCatalog()); err == nil {
+		t.Error("expected error for unknown category, got nil")
+	}
+}
+
+func TestLoadConfigSelectorScriptEmptyPath(t *testing.T) {
+	dir := t.TempDir()
+	writeConfigFile(t, dir, "selector-scripts:\n  environment: {}\n")
+
+	if _, err := LoadConfig(dir, testConfigCatalog()); err == nil {
+		t.Error("expected error for empty path, got nil")
+	}
+}

@@ -130,3 +130,30 @@ func TestOrderedCategoriesCycle(t *testing.T) {
 		t.Error("expected error for dependency cycle, got nil")
 	}
 }
+
+func TestIntroducedConflicts(t *testing.T) {
+	cat := testCatalog()
+	dev, _ := cat.Find("environment", "dev")
+	acme, _ := cat.Find("tenant", "acme")
+	globex, _ := cat.Find("tenant", "globex")
+	fbProd, _ := cat.Find("facebook-app", "prod")
+
+	// globex requires env == prod, which dev definitely contradicts.
+	if got := IntroducedConflicts(Selection{"environment": dev}, "tenant", globex); len(got) != 1 {
+		t.Errorf("expected one definite conflict for dev + globex, got %v", got)
+	}
+	if got := IntroducedConflicts(Selection{"environment": dev}, "tenant", acme); len(got) != 0 {
+		t.Errorf("expected no conflict for dev + acme, got %v", got)
+	}
+
+	// environment is still open, so globex's env clause can't be judged yet.
+	if got := IntroducedConflicts(Selection{}, "tenant", globex); len(got) != 0 {
+		t.Errorf("expected clause on an open category to be skipped, got %v", got)
+	}
+
+	// dev + prod facebook-app already conflict; that's not acme's fault.
+	partial := Selection{"environment": dev, "facebook-app": fbProd}
+	if got := IntroducedConflicts(partial, "tenant", acme); len(got) != 0 {
+		t.Errorf("expected pre-existing conflict not to be attributed, got %v", got)
+	}
+}

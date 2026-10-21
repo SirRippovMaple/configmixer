@@ -11,12 +11,13 @@ import (
 
 // categoryFlagNames returns the derived flag names for a category, used both
 // to register flags and to check for name collisions up front.
-func categoryFlagNames(category string) [4]string {
-	return [4]string{"select-" + category, "no-auto-" + category, "no-default-" + category, "prompt-" + category}
+func categoryFlagNames(category string) [5]string {
+	return [5]string{"select-" + category, "no-auto-" + category, "no-default-" + category, "no-script-" + category, "prompt-" + category}
 }
 
 // checkFlagNameCollisions verifies that every per-category flag name
-// (--select-<category>, --no-auto-<category>, --no-default-<category>) is
+// (--select-<category>, --no-auto-<category>, --no-default-<category>,
+// --no-script-<category>, --prompt-<category>) is
 // unique and doesn't collide with any of the fixed flags already registered
 // on c, returning a clear error instead of letting pflag panic on a
 // duplicate flag registration.
@@ -56,6 +57,17 @@ func registerNoDefaultFlags(c *cobra.Command, catalog *mixin.Catalog) map[string
 		noDefaultFlags[category] = v
 	}
 	return noDefaultFlags
+}
+
+// registerNoScriptFlags registers one bool flag per category to opt out of
+// a configured selector script for that category.
+func registerNoScriptFlags(c *cobra.Command, catalog *mixin.Catalog) map[string]*bool {
+	noScriptFlags := map[string]*bool{}
+	for _, category := range catalog.CategoryNames() {
+		v := c.Flags().Bool("no-script-"+category, false, fmt.Sprintf("disable the configured selector script for category %q", category))
+		noScriptFlags[category] = v
+	}
+	return noScriptFlags
 }
 
 // registerPromptFlags registers one bool flag per category that forces an
