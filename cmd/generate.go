@@ -97,27 +97,12 @@ func runGenerate(catalog *mixin.Catalog, cfg *mixin.Config, categoryFlags map[st
 		return err
 	}
 
+	if err := resolveDefaults(catalog, cfg, order, sel, noDefaultFlags, nil); err != nil {
+		return err
+	}
+
 	for _, category := range order {
 		if _, ok := sel[category]; ok {
-			continue
-		}
-		if defaultID, ok := cfg.Defaults[category]; ok && !*noDefaultFlags[category] {
-			m, ok := catalog.Find(category, defaultID)
-			if !ok {
-				return fmt.Errorf("default mixin %q for category %q no longer exists", defaultID, category)
-			}
-			compatible := false
-			for _, choice := range mixin.CompatibleChoices(catalog, category, sel) {
-				if choice.ID == m.ID {
-					compatible = true
-					break
-				}
-			}
-			if !compatible {
-				return fmt.Errorf("default mixin %q for category %q is not compatible with the current selection", defaultID, category)
-			}
-			sel[category] = m
-			fmt.Printf("default %s: %s\n", category, m.ID)
 			continue
 		}
 		choices := mixin.CompatibleChoices(catalog, category, sel)
