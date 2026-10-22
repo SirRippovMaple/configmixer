@@ -16,6 +16,10 @@ builds:
       - arm64
     ldflags:
       - -s -w -X main.version={{ .Version }}
+    hooks:
+      post:
+        - cmd: ./scripts/macos-sign.sh "{{ .Os }}" "{{ .Path }}"
+          output: true
 
 archives:
   - id: configmixer
